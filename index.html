@@ -10,8 +10,8 @@
 
 <h3>Me</h3>
 <p id='me'>
-First Name: <span data-bind='firstName'></span><br/>
-Last Name: <span data-bind='lastName'></span><br/>
+First Name: <span data-bind='firstName | capital'></span><br/>
+Last Name: <span data-bind='lastName | capital'></span><br/>
 Age: <span data-bind='age'></span>
 </p>
 
@@ -23,22 +23,33 @@ Age: <span data-bind='age'></span>
 </p>
 
 <script type="text/javascript">
-(function() {
-	var chuan = {
-		firstName: 'Chuan',
+
+$(function() {
+	chuan = {
+		firstName: 'chuan',
 		lastName: 'Miao',
 		age: 37
 	};
-	var lele = {
+	lele = {
 		firstName: 'Nianxiang',
 		lastName: 'Han',
 		age: 30
 	};
 
-	// jQuery.bindings(chuan);
-	$('#her').bindings(lele);
+	var newfilters = {
+		testFunction: function(s) {
+			return 'test-function';
+		},
+		capital: function(s) {
+        	return s.length > 0 ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+        }
+    };
 
-})();
+	$.extend($.fn.bindings.filters, newfilters);
+
+	$('#me').bindings(chuan);
+	$('#her').bindings(lele);
+});
 	
 </script>
 </body>

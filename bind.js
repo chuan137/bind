@@ -32,75 +32,96 @@
 
   var pluginName = 'bindings';
 
-  function Plugin( bindings ) {
-    this.bindings = bindings;
+  function Plugin( ele, data ) {
+    this.bindings = data;
+    this.el = $(ele);
     this._name = pluginName;
+    this.doms = new Array();
 
     this.init();
   }
 
   Plugin.prototype.init = function () {
     var self = this;
-    console.log(self);
+  
+    self.el.find('[data-bind]').each(function(){
+      var $this = $(this);
+      var key, filter, match;
 
-    $('[data-bind]').each(function(){
-      var $this = $(this)
-      , key = $this.attr('data-bind')
-      , hasVal = $this.is('select, options, input, textarea')
-      , keyup = $this.is('input, textarea');
+      // extract key and filter function
+      key = $this.attr('data-bind');
+      match = /(\w+)\s*\|\s*(\w+)/g.exec(key);
+      if ( match !== null ) {
+        key = match[1];
+        filter = match[2];  
+      }
 
-      console.log($this);
-      
-      $this[hasVal?'val':'html'](self.bindings[key]);
-      
+      self.doms.push({
+          el: $this,
+          key: key,
+          filter: filter,
+          hasVal: $this.is('select, options, input, textarea'),
+          keyup: $this.is('input, textarea')
+      });
+    
       // Bind our Element to change the object
-      
-      $this.on('keyup.bindings change.bindings', function(){
-        self.bindings[key] = hasVal ? $this.val() : $this.html();
-        $.trigger('bindings.'+key);
-      });
-      
-      // Bind our Object to change the element
-      Object.observe(self.bindings, function(obj){
-        self.observer($this, obj, key);
-      });
-      
+      // $this.on('keyup.bindings change.bindings', function(){
+      //   self.bindings[key] = hasVal ? $this.val() : $this.html();
+      //   $.trigger('bindings.'+key);
+      // });      
     });
 
+    $.each(self.doms, function(idx, dom){
+        self.binder(dom, self.bindings[dom.key]);
+    });
+
+    Object.observe(self.bindings, function(obj){
+        self.observer(obj);
+    });
   };
   
-  Plugin.prototype.observer = function (ele, obj, key) {
-      var $elem = ele.jquery === undefined ? $(ele) : ele;
+  Plugin.prototype.binder = function (dom, val) {
+    var filter = dom.filter
+    , hasVal = dom.hasVal
+    , el = dom.el;
+    
+    if ( filter in $.fn[pluginName].filters )
+      val = $.fn[pluginName].filters[filter](val);
+    el[hasVal?'val':'html'](val);
+  };
+
+  Plugin.prototype.observer = function (obj) {
+      var self = this
+      , name = obj[0].name
+      , newValue = obj[0].object[name];
+    
+      $.each(self.doms, function(idx, dom) {
+        if ( dom.key === name ) {
+          self.binder(dom, newValue);
+        }
+      });
       
-      $elem[$elem.is('select, option, input, textarea')?'val':'html']( obj[0].object[key] );
-      $.trigger('bindings.'+key);
+      // $.trigger('bindings.'+key);
   };
 
+  // plugin enter point
   $.fn[pluginName] = function ( bindings ) {
+    return this.each(function () {
       if (!$.data(this, 'plugin_' + pluginName)) {
-        $.data(this, 'plugin_' + pluginName, new Plugin( bindings ));
+        $.data(this, 'plugin_' + pluginName, new Plugin( this, bindings ));
+        // console.log(this);
+        // console.log($.data(this));
+        // console.log($.fn[pluginName].filters);
+      } else {
+        delete $.data(this, 'plugin_'+pluginName);
+        // console.log(this);
+        $.data(this, 'plugin_' + pluginName, new Plugin( this, bindings ));
       }
+    });
   };
 
-  // $[pluginName] = function ( bindings ) {
-  //     if (!$.data(this, 'plugin_' + pluginName)) {
-  //       $.data(this, 'plugin_' + pluginName, new Plugin( bindings ));
-  //     }
-  // };
+  // Plugin filters holder
+  $.fn[pluginName].filters = {};
 
 }(jQuery, window));
 
-
-// if(Object.hasOwnProperty('observe')) {
-//   var binds = {
-//     firstName: 'John',
-//     lastName: 'Doe',
-//     age: 22,
-//     color: 'Blue'
-//   };
-//   $(function(){
-//     $.bindings(binds);
-//   });
-// } else {
-//   alert('Sorry your browser does not support Object.observe! Please Read "Notice" section in the JS panel.');
-// }
